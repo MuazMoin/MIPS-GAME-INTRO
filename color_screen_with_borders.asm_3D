@@ -1,0 +1,84 @@
+.data
+INPUT_RIJ:       .asciiz "Voer het rijnummer in: "
+INPUT_KOLOM:     .asciiz "Voer het kolomnummer in: "
+OUTPUT_STRING:   .asciiz "Het geheugenadres voor de pixel is: "
+INPUT_KLEUR:     .asciiz "Voer de kleur in: "
+
+.text
+.globl main
+
+main:
+
+STACKFRAME:
+    addi $sp, $sp, -16
+    sw $ra, 0($sp)  # Bewaar de return address op de stack
+    sw $s0, 4($sp)  # Bewaar register $s0 op de stack
+    sw $s1, 8($sp)  # Bewaar register $s1 op de stack
+    sw $s2, 12($sp) # Bewaar register $s2 op de stack
+
+RIJ:
+    li $v0, 4
+    la $a0, INPUT_RIJ
+    syscall
+
+    li $v0, 5
+    syscall
+    sw $v0, 4($sp)  # Bewaar het ingevoerde rijnummer op de stack
+
+kolom:
+    li $v0, 4
+    la $a0, INPUT_KOLOM
+    syscall
+
+    li $v0, 5
+    syscall
+    sw $v0, 8($sp)  # Bewaar het ingevoerde kolomnummer op de stack
+
+Geheugenadres:
+    lw $s0, 4($sp)  # Laad het ingevoerde rijnummer in $s0
+    li $s2, 32      # Breedte van het scherm
+    mul $s1, $s0, $s2  # $s1 = $s0 * 32 (rijnummer * breedte van het scherm)
+    lw $s0, 8($sp)  # Laad het ingevoerde kolomnummer in $s0
+    add $s0, $s1, $s0  # $s0 = $s1 + $s0 (geheugenadres = rijnummer * breedte + kolomnummer)
+
+
+    mul $s2, $s0, 4  # Elke pixel is 32 bits, dus vermenigvuldig met 4 om het geheugenadres te krijgen
+
+Geheugenadres_def:
+
+    add $s1, $s2, $gp  # $s1 bevat nu het uiteindelijke geheugenadres
+
+KLEUR_INVOEREN:
+
+    li $v0, 4
+    la $a0, INPUT_KLEUR
+    syscall
+
+    li $v0, 5
+    syscall
+    move $t2, $v0
+    sw $t2, 12($sp)  # Bewaar de ingevoerde kleur op de stack
+
+kleur_op_GA:
+    lw $s2, 12($sp)
+    sw $s2, 0($s1)
+
+Print_string:
+
+    li $v0, 4
+    la $a0, OUTPUT_STRING
+    syscall
+
+Print_geheugenadres:
+
+    lw $a0, 0($s1)
+    li $v0, 1
+    syscall
+
+EINDE: 
+    lw $ra, 0($sp)  # Herstel de return address vanaf de stack
+    addi $sp, $sp, 16  # Herstel de stack
+
+ 
+    li $v0, 10    # Beëindig het programma
+    syscall
