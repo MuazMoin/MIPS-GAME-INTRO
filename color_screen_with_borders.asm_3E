@@ -1,0 +1,118 @@
+# Registergebruik:
+# $a0: Aantal rijen
+# $a1: Aantal kolommen
+# $t1: Rode kleurwaarde
+# $t2: Gele kleurwaarde
+# $t3: Grootte van elke pixel in bytes (32 bits)
+# $t4: Oorspronkelijke positie van gp
+# $t5: Teller voor pixeliteraties
+# $gp: Globale pointer (wijst naar het geheugen)
+
+.data
+b:    .word 32       # Breedte van het scherm in pixels
+h:    .word 16       # Hoogte van het scherm in pixels
+pixel_grootte:    .word 4        # Grootte van elke pixel in bytes (32 bits)
+rood:             .word 0x00FF0000
+geel:             .word 0x00FFFF00
+
+.text
+
+    lw   $a0, h      # Laad het aantal rijen in $a0
+    lw   $a1, b     # Laad het aantal kolommen in $a1
+    
+    lw   $t1, rood               # Laad de rode kleurwaarde in $t1
+    lw   $t2, geel               # Laad de gele kleurwaarde in $t2
+    
+    lw   $t3, pixel_grootte      # Laad de grootte van elke pixel in $t3
+    
+    li   $t5, 0                  # Zet de teller op 0; deze teller wordt met 1 verhoogd voor elke pixel en stopt wanneer deze het aantal rijen * kolommen bereikt
+    la   $t4, ($gp)              # Sla de oorspronkelijke positie van gp op
+    mul  $t0, $a0, $a1           # Bereken rijen * kolommen (aantal iteraties)
+    
+main:
+
+pixel_kleuren:
+
+# Functie om rode pixels te tekenen
+rode_pixels:
+    jal  teken_rode_pixel
+    li   $t5, 0                  # Reset de teller naar 0
+    j    gele_rij_1              # Spring naar het tekenen van gele pixels op de eerste rij
+
+# Functie om gele pixels op de eerste rij te tekenen
+gele_rij_1:
+    jal  teken_gele_rij_1
+    li   $t5, 0                  # Reset de teller naar 0
+    addi $gp, $gp, 1920          # Verplaats de pointer naar de linkerbovenhoek.
+    j    gele_rij_16             # Spring naar het tekenen van gele pixels op de zestiende rij
+
+# Functie om gele pixels op de zestiende rij te tekenen
+gele_rij_16:
+    jal  teken_gele_rij_16
+    li   $t5, 0                  # Reset de teller naar 0
+    j    kolommen                # Spring naar het tekenen van kolommen met gele pixels
+
+# Functie om kolommen met gele pixels te tekenen
+kolommen:
+    jal  teken_kolommen
+    j    Exit
+
+Exit:
+    # Voeg hier eventuele exit-code toe
+    li   $v0, 10                  # Syscall voor afsluiten
+    syscall
+
+
+# Functie om een rode pixel te tekenen
+teken_rode_pixel:
+    sw   $t1, ($gp)               # Sla de rode kleurwaarde op de huidige geheugenlocatie op die gp aangeeft
+    addi $gp, $gp, 4              # Ga naar de volgende pixel (voeg 4 toe aan gp)
+    addi $t5, $t5, 1              # Verhoog de teller met 1
+    bne  $t5, $t0, rode_pixels   # Als de teller niet gelijk is aan het totale aantal pixels, teken dan nog een pixel door de lus opnieuw te starten
+    
+    move $gp, $t4                 # Herstel gp naar de oorspronkelijke positie
+    jr   $ra
+
+# Functie om gele pixels op de eerste rij te tekenen
+teken_gele_rij_1:
+    sw   $t2, ($gp)               # Sla de gele kleurwaarde op de huidige geheugenlocatie op die gp aangeeft
+    addi $gp, $gp, 4              # Ga naar de volgende pixel
+    addi $t5, $t5, 1              # Verhoog de teller met 1
+    bne  $t5, $a1, gele_rij_1     # Blijf loopen totdat t5 gelijk is aan a1 (teller is gelijk aan breedte)
+    
+    move $gp, $t4
+    jr   $ra
+
+
+# Functie om gele pixels op de zestiende rij te tekenen
+teken_gele_rij_16:
+    addi $t5, $t5, 1               # Verhoog de teller met 1
+    addi $gp, $gp, 4               # Ga naar de volgende pixel
+    
+    # Sla de gele kleurwaarde op de huidige geheugenlocatie op die gp aangeeft
+    sw   $t2, ($gp)
+    bne  $t5, $a1, teken_gele_rij_16 # Blijf loopen totdat t5 gelijk is aan a1 (teller is gelijk aan breedte)
+    move $gp, $t4
+    
+    jr   $ra
+
+# Functie om kolommen met gele pixels te tekenen
+teken_kolommen:
+    addi $gp, $gp, 124             # Verplaats gp naar de volgende kolom (skip naar de volgende rij)
+    
+    # Sla de gele kleurwaarde op de huidige geheugenlocatie op die gp aangeeft
+    sw   $t2, ($gp)
+    addi $gp, $gp, 4               # Ga naar de volgende pixel
+    
+    # Sla de gele kleurwaarde op de huidige geheugenlocatie op die gp aangeeft
+    sw   $t2, ($gp)   
+    addi $t5, $t5, 1               # Verhoog de teller met 1    
+    bne  $t5, $a0, teken_kolommen  # Blijf loopen totdat t5 gelijk is aan a0 (teller is gelijk aan hoogte)   
+    move $gp, $t4
+    jr   $ra
+
+
+# Exit-syscall
+Exit2:
+    li   $v0, 10                   # Syscall voor afsluiten
+    syscall
